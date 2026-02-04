@@ -3,6 +3,8 @@ import { LocationContext } from '../App';
 import { ZoomIn, ZoomOut, Maximize2, MapPin, Square, Map as MapIcon, X, Navigation, Satellite } from 'lucide-react';
 import { fetchCountyBoundary, fetchWards, parseWardsFromGeoJSON, createWardCentersLookup, type GeoJSONFeature, type GeoJSONFeatureCollection } from '../utils/api';
 
+import { fetchTemperatureTiles, fetchElevationTiles } from '../utils/api';
+
 declare global {
   interface Window {
     L: any;
@@ -52,7 +54,9 @@ export default function MapView({
   const bufferLayerRef = useRef<any>(null);
   const previousModeRef = useRef<SpatialMode>(null);
   const tileLayerRef = useRef<any>(null);
-  
+  const temperatureLayerRef = useRef<any>(null);
+  const elevationLayerRef = useRef<any>(null);
+
   // API data states
   const [countyBoundaryData, setCountyBoundaryData] = useState<GeoJSONFeature | GeoJSONFeatureCollection | null>(null);
   const [wardsData, setWardsData] = useState<GeoJSONFeatureCollection | null>(null);
@@ -134,10 +138,35 @@ export default function MapView({
   }, []);
 
   useEffect(() => {
-    if (mapLoaded && selectedCounty && !mapRef.current && !isLoadingBoundaries) {
-      initializeMap();
+  if (!mapRef.current || !window.L || !countyBoundaryData) return;
+
+  const map = mapRef.current;
+  const L = window.L;
+
+  // Remove old boundary if it exists
+  if (layersRef.current.boundary) {
+    map.removeLayer(layersRef.current.boundary);
+  }
+
+  const countyLayer = L.geoJSON(countyBoundaryData, {
+    style: {
+      color: '#6b7280',
+      weight: 1.0,
+      fillOpacity: 0,
     }
-  }, [mapLoaded, selectedCounty, isLoadingBoundaries, countyBoundaryData]);
+  }).addTo(map);
+
+  map.setView([0.2, 35.3], 10);
+  layersRef.current.boundary = countyLayer;
+
+  console.log('County boundary added AFTER map load');
+}, [countyBoundaryData]);
+
+  useEffect(() => {
+      if (mapLoaded && selectedCounty && !mapRef.current) {
+        initializeMap();
+      }
+    }, [mapLoaded, selectedCounty]);
 
   // Re-add ward boundaries when data becomes available
   useEffect(() => {
@@ -162,6 +191,134 @@ export default function MapView({
     }
   }, [activeLayers]);
 
+useEffect(() => {
+  if (!mapRef.current || !window.L || !mapLoaded || !countyBoundaryData) return;
+
+  const map = mapRef.current;
+  const L = window.L;
+  let cancelled = false;
+
+  const removeTemperatureLayer = () => {
+    if (temperatureLayerRef.current) {
+      map.removeLayer(temperatureLayerRef.current);
+      temperatureLayerRef.current = null;
+      console.log("🧹 Temperature layer removed");
+    }
+  };
+
+  const loadTemperatureLayer = async () => {
+    try {
+      removeTemperatureLayer();
+
+      let geometry: any = null;
+
+      if ((countyBoundaryData as any).type === "Feature") {
+        geometry = (countyBoundaryData as any).geometry;
+      } else if ((countyBoundaryData as any).type === "FeatureCollection") {
+        const features = (countyBoundaryData as any).features;
+        geometry = {
+          type: "MultiPolygon",
+          coordinates: features.map((f: any) => f.geometry.coordinates).flat()
+        };
+      }
+
+      if (!geometry) throw new Error("No county geometry found");
+
+      const tiles = await fetchTemperatureTiles(
+        geometry,
+        "2024-01-01",
+        "2024-01-31"
+      );
+
+      if (cancelled) return; // 🔥 prevents late tile from re-adding
+
+      const tempLayer = L.tileLayer(tiles.tile_url, {
+        opacity: 0.9,
+        attribution: "Temperature © ERA5-Land via Google Earth Engine",
+        crossOrigin: true
+      });
+
+      tempLayer.addTo(map);
+      tempLayer.bringToFront();
+      temperatureLayerRef.current = tempLayer;
+
+      console.log("✅ Temperature layer added");
+    } catch (err) {
+      console.error("❌ Temperature layer failed:", err);
+    }
+  };
+
+  if (activeLayers.includes("temperature")) {
+    loadTemperatureLayer();
+  } else {
+    removeTemperatureLayer();
+  }
+
+  return () => {
+    cancelled = true;   // 🔥 stops async re-add
+    removeTemperatureLayer(); // 🔥 guaranteed cleanup
+  };
+}, [activeLayers, countyBoundaryData, mapLoaded]);
+
+useEffect(() => {
+  if (!mapRef.current || !window.L || !mapLoaded || !countyBoundaryData) return;
+
+  const map = mapRef.current;
+  const L = window.L;
+  const elevationActive = activeLayers.includes("elevation");
+
+  const loadElevationLayer = async () => {
+    try {
+      // Remove old layer first
+      if (elevationLayerRef.current) {
+        map.removeLayer(elevationLayerRef.current);
+        elevationLayerRef.current = null;
+      }
+
+      let geometry: any = null;
+
+      if ((countyBoundaryData as any).type === "Feature") {
+        geometry = (countyBoundaryData as any).geometry;
+      } else if ((countyBoundaryData as any).type === "FeatureCollection") {
+        const features = (countyBoundaryData as any).features;
+        const allCoords = features.map((f: any) => f.geometry.coordinates);
+
+        geometry = {
+          type: "MultiPolygon",
+          coordinates: allCoords.flat()
+        };
+      }
+
+      if (!geometry) throw new Error("No county geometry found");
+
+      const tiles = await fetchElevationTiles(geometry);
+
+      console.log("Elevation TILE URL:", tiles.tile_url);
+
+      const elevationLayer = L.tileLayer(tiles.tile_url, {
+        opacity: 0.95,
+        attribution: "Elevation © SRTM via Google Earth Engine",
+        crossOrigin: "anonymous",
+        maxZoom: 13,
+      });
+
+      elevationLayer.addTo(map);
+      elevationLayer.bringToFront();
+
+      elevationLayerRef.current = elevationLayer;
+    } catch (err) {
+      console.error("❌ Elevation layer failed:", err);
+    }
+  };
+
+  if (elevationActive) {
+    loadElevationLayer();
+  } else if (elevationLayerRef.current) {
+    map.removeLayer(elevationLayerRef.current);
+    elevationLayerRef.current = null;
+  }
+}, [activeLayers, countyBoundaryData, mapLoaded]);
+
   // Invalidate map size when sidebar opens/closes to prevent blurriness
   useEffect(() => {
     if (mapRef.current && mapLoaded) {
@@ -182,12 +339,11 @@ export default function MapView({
     const map = mapRef.current;
     const L = window.L;
 
-    // Remove current tile layer
-    map.eachLayer((layer: any) => {
-      if (layer instanceof L.TileLayer) {
-        map.removeLayer(layer);
-      }
-    });
+    if (tileLayerRef.current) {
+      map.removeLayer(tileLayerRef.current);
+      tileLayerRef.current = null;
+    }
+
 
     // Add new tile layer based on mapStyle
     if (mapStyle === 'satellite') {
@@ -608,16 +764,36 @@ export default function MapView({
 
       console.log('Map tiles added');
 
-      // Add county boundary from API data or fallback to hardcoded
-      if (!countyBoundaryData || isLoadingBoundaries) {
-          console.error('No county boundary data available — map will load without boundary');
-          return;
-        }
+      if (countyBoundaryData && !isLoadingBoundaries) {
+        const countyLayer = L.geoJSON(countyBoundaryData, {
+          style: {
+            color: '#6b7280',
+            weight: 1.0,
+            fillOpacity: 0,
+          },
+          onEachFeature: (feature: any, layer: any) => {
+            const countyName =
+              feature.properties?.name ||
+              feature.properties?.NAME ||
+              feature.properties?.COUNTY ||
+              'County Boundary';
+
+            layer.bindPopup(`<strong>${countyName}</strong><br>County Boundary`);
+          }
+        }).addTo(map);
+
+        map.fitBounds(countyLayer.getBounds(), { padding: [30, 30] });
+        layersRef.current.boundary = countyLayer;
+        console.log('County boundary added');
+      } else {
+        console.log('Boundary not ready yet — basemap loaded first');
+      }
+
 
         const countyLayer = L.geoJSON(countyBoundaryData, {
           style: {
-          color: '#166534',   
-          weight: 1.2,       
+          color: '#6b7280',   
+          weight: 1.0,       
           fillOpacity: 0,     
         },
           onEachFeature: (feature: any, layer: any) => {
@@ -665,15 +841,13 @@ export default function MapView({
 
       // Add GeoJSON layer for ward boundaries
       const wardLayer = L.geoJSON(wardsData, {
-        style: (feature: any) => {
-          return {
-            color: '#10b981',
-            weight: 1,
-            fillColor: '#34d399',
-            fillOpacity: 0.2,
+        style: () => ({
+            color: '#9ca3af',   // light gray outline
+            weight: 0.8,
+            fillOpacity: 0,     // ❗ NO FILL
             className: 'ward-boundary'
-          };
-        },
+          }),
+
         onEachFeature: (feature: any, layer: any) => {
           // Debug: Log all properties for this feature
           console.log('Ward feature properties:', feature.properties);
@@ -776,39 +950,37 @@ export default function MapView({
         }
       });
     }
+      // Add/remove overlay layers (VECTOR ONLY)
+      const overlays = ['ndvi', 'rainfall'];
+      overlays.forEach((layerName) => {
+        if (activeLayers.includes(layerName) && !layersRef.current[layerName]) {
+          const L = window.L;
+          const colors: any = {
+            ndvi: 'rgba(16, 185, 129, 0.15)',
+            rainfall: 'rgba(59, 130, 246, 0.15)',
+          };
 
-    // Add/remove overlay layers
-    const overlays = ['ndvi', 'rainfall', 'temperature'];
-    overlays.forEach((layerName) => {
-      if (activeLayers.includes(layerName) && !layersRef.current[layerName]) {
-        const L = window.L;
-        const colors: any = {
-          ndvi: 'rgba(16, 185, 129, 0.15)',
-          rainfall: 'rgba(59, 130, 246, 0.15)',
-          temperature: 'rgba(249, 115, 22, 0.15)',
-        };
+          const overlay = L.polygon([
+            [0.2500, 35.0500],
+            [0.2500, 35.2500],
+            [0.1000, 35.3000],
+            [-0.0500, 35.2500],
+            [-0.1000, 35.1000],
+            [0.0500, 35.0000],
+            [0.2000, 35.0200],
+          ], {
+            color: 'transparent',
+            fillColor: colors[layerName],
+            fillOpacity: 1,
+            interactive: false,
+          }).addTo(map);
 
-        const overlay = L.polygon([
-          [0.2500, 35.0500],
-          [0.2500, 35.2500],
-          [0.1000, 35.3000],
-          [-0.0500, 35.2500],
-          [-0.1000, 35.1000],
-          [0.0500, 35.0000],
-          [0.2000, 35.0200],
-        ], {
-          color: 'transparent',
-          fillColor: colors[layerName],
-          fillOpacity: 1,
-          interactive: false,
-        }).addTo(map);
-
-        layersRef.current[layerName] = overlay;
-      } else if (!activeLayers.includes(layerName) && layersRef.current[layerName]) {
-        map.removeLayer(layersRef.current[layerName]);
-        delete layersRef.current[layerName];
-      }
-    });
+          layersRef.current[layerName] = overlay;
+        } else if (!activeLayers.includes(layerName) && layersRef.current[layerName]) {
+          map.removeLayer(layersRef.current[layerName]);
+          delete layersRef.current[layerName];
+        }
+      });
   };
 
   const handleZoomIn = () => {
@@ -837,19 +1009,6 @@ export default function MapView({
       {selectedCounty ? (
         <>
           <div ref={mapContainerRef} className="w-full h-full" style={{ minHeight: '400px' }} />
-
-          {/* Loading Overlay - Only show when map itself is loading, not boundaries */}
-          {!mapLoaded && (
-            <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 backdrop-blur-sm z-[2000]">
-              <div className="text-center bg-white/90 backdrop-blur-md p-8 rounded-2xl shadow-2xl border border-gray-200">
-                <div className="w-16 h-16 border-4 border-green-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                <p className="text-gray-800 font-semibold text-lg mb-2">
-                  Initializing map...
-                </p>
-                <p className="text-gray-600 text-sm">Please wait</p>
-              </div>
-            </div>
-          )}
           
           {/* Ward Boundaries Loading Indicator - Small, unobtrusive */}
           {mapLoaded && isLoadingBoundaries && (

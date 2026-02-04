@@ -34,6 +34,15 @@ export interface WardData {
   center?: { lat: number; lng: number };
 }
 
+export interface TemperatureTilesResponse {
+  tile_url: string;
+  vis_params: {
+    min: number;
+    max: number;
+    palette: string[];
+  };
+}
+
 /**
  * Get authentication headers for API requests
  */
@@ -51,6 +60,18 @@ async function getAuthHeaders(): Promise<HeadersInit> {
     "Content-Type": "application/json",
   };
 }
+
+export const fetchElevationTiles = async (geometry: any) => {
+  const res = await fetch(`${API_BASE_URL}/elevation/tiles`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(geometry),
+  });
+
+  if (!res.ok) throw new Error("Failed to fetch elevation tiles");
+
+  return res.json();
+};
 
 /**
  * Get headers for public API endpoints (no authentication required)
@@ -119,6 +140,29 @@ export async function fetchWards(): Promise<GeoJSONFeatureCollection> {
     console.error('Error fetching wards:', error);
     throw error;
   }
+}
+
+export async function fetchTemperatureTiles(
+  geometry: GeoJSONGeometry,
+  startDate: string,
+  endDate: string
+): Promise<TemperatureTilesResponse> {
+  const response = await fetch(
+    `${API_BASE_URL}/temperature/tiles?start_date=${startDate}&end_date=${endDate}`,
+    {
+      method: 'POST',
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(geometry),
+    }
+  );
+
+  if (!response.ok) {
+    const text = await response.text();
+    console.error("Temperature tiles backend error:", text);
+    throw new Error("Failed to fetch temperature tiles");
+  }
+
+  return response.json();
 }
 
 /**

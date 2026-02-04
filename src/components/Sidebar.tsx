@@ -47,8 +47,10 @@ export default function Sidebar({
     { id: 'ndvi', name: 'NDVI (Vegetation)', color: 'bg-emerald-500' },
     { id: 'rainfall', name: 'Rainfall', color: 'bg-blue-500' },
     { id: 'temperature', name: 'Temperature', color: 'bg-orange-500' },
+    { id: 'elevation', name: 'Elevation (Terrain)', color: 'bg-slate-600' }, // ⛰️ ADD THIS LINE
     { id: 'soil', name: 'Soil Type', color: 'bg-amber-500' },
   ];
+
 
   const seedVarieties = [
     { id: 'all', name: 'All Varieties' },
