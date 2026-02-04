@@ -1,7 +1,7 @@
 // API Configuration and Utilities
 import { auth } from "../firebase";
 
-const API_BASE_URL = 'https://smartseed-backend-production.up.railway.app/api';
+const API_BASE_URL = 'https://smartseed-backend.onrender.com/api';
 
 // Type definitions for GeoJSON
 export interface GeoJSONGeometry {
