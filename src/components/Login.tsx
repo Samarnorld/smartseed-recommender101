@@ -394,7 +394,7 @@ export default function Login({ onLogin }: LoginProps) {
               {/* Footer */}
               <div className="bg-gradient-to-r from-green-600 to-emerald-600 px-6 py-4 text-center">
                 <p className="text-xs sm:text-sm text-white font-medium">
-                  ✨ Empowering farmers with AI and Earth
+                  Empowering farmers with AI and Earth
                   Observation technology
                 </p>
               </div>
