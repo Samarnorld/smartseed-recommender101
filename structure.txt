@@ -1,0 +1,94 @@
+Folder PATH listing
+Volume serial number is D016-E3FA
+C:.
+|   index.html
+|   package-lock.json
+|   package.json
+|   README.md
+|   structure.txt
+|   vite.config.ts             
+\---src
+    |   App.tsx
+    |   Attributions.md
+    |   firebase.ts
+    |   index.css
+    |   main.tsx
+    |   
+    +---assets
+    |       5e25c6c038ecd78f23bb6453b71467354e3bd141.png
+    |       bfff5ac931bd296881f58b314ebeddff6dce0c23.png
+    |       
+    +---components
+    |   |   AdminPortal.tsx
+    |   |   CountySelectionModal.tsx
+    |   |   Dashboard.tsx
+    |   |   DataExplorer.tsx
+    |   |   Footer.tsx
+    |   |   InfoPanel.tsx
+    |   |   LandingPage.tsx
+    |   |   LocationModeSelector.tsx
+    |   |   Login.tsx
+    |   |   MapView.tsx
+    |   |   SeedRecommendations.tsx
+    |   |   Sidebar.tsx
+    |   |   WardSelectionModal.tsx
+    |   |   
+    |   \---ui
+    |           accordion.tsx
+    |           alert-dialog.tsx
+    |           alert.tsx
+    |           aspect-ratio.tsx
+    |           avatar.tsx
+    |           badge.tsx
+    |           breadcrumb.tsx
+    |           button.tsx
+    |           calendar.tsx
+    |           card.tsx
+    |           carousel.tsx
+    |           chart.tsx
+    |           checkbox.tsx
+    |           collapsible.tsx
+    |           command.tsx
+    |           context-menu.tsx
+    |           dialog.tsx
+    |           drawer.tsx
+    |           dropdown-menu.tsx
+    |           form.tsx
+    |           hover-card.tsx
+    |           input-otp.tsx
+    |           input.tsx
+    |           label.tsx
+    |           menubar.tsx
+    |           navigation-menu.tsx
+    |           pagination.tsx
+    |           popover.tsx
+    |           progress.tsx
+    |           radio-group.tsx
+    |           resizable.tsx
+    |           scroll-area.tsx
+    |           select.tsx
+    |           separator.tsx
+    |           sheet.tsx
+    |           sidebar.tsx
+    |           skeleton.tsx
+    |           slider.tsx
+    |           sonner.tsx
+    |           switch.tsx
+    |           table.tsx
+    |           tabs.tsx
+    |           textarea.tsx
+    |           toggle-group.tsx
+    |           toggle.tsx
+    |           tooltip.tsx
+    |           use-mobile.ts
+    |           utils.ts
+    |           
+    +---guidelines
+    |       Guidelines.md
+    |       
+    +---styles
+    |       globals.css
+    |       
+    \---utils
+            api.ts
+            
