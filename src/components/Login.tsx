@@ -340,7 +340,7 @@ export default function Login({ onLogin }: LoginProps) {
                 </form>
 
                 {/* Google Login Button */}
-                <div className="mt-4 text-center">
+                {/* <div className="mt-4 text-center">
                   <button
                     type="button"
                     onClick={handleGoogleLogin}
@@ -356,7 +356,7 @@ export default function Login({ onLogin }: LoginProps) {
                       "Login with Google"
                     )}
                   </button>
-                </div>
+                </div> */}
 
                 {/* Toggle between Login and Signup */}
                 <div className="mt-4 text-center">
